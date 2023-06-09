@@ -36,9 +36,16 @@ async function run() {
     // all collections
     const allUsersCollection = client.db("users").collection("allusers");
 
-    app.post("/users", (req, res) => {
+    app.post("/users", async (req, res) => {
       const userData = req.body;
-      const result = allUsersCollection.insertOne(userData);
+      const result = await allUsersCollection.insertOne(userData);
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const email = req.query.email;
+      const query = { email };
+      const result = await allUsersCollection.findOne(query);
       res.send(result);
     });
   } finally {
