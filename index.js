@@ -32,6 +32,15 @@ async function run() {
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
+
+    // all collections
+    const allUsersCollection = client.db("users").collection("allusers");
+
+    app.post("/users", (req, res) => {
+      const userData = req.body;
+      const result = allUsersCollection.insertOne(userData);
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -44,5 +53,5 @@ run().catch(console.dir);
 // });
 
 app.listen(port, () => {
-  console.log(`Server running. Listening at port ${port}`);
+  console.log(`Server running. Listening to port ${port}`);
 });
