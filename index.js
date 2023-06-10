@@ -36,6 +36,10 @@ async function run() {
     // all collections
     const allUsersCollection = client.db("users").collection("allusers");
 
+    app.get("/", (req, res) => {
+      res.send("Hello from home url.");
+    });
+
     app.post("/users", async (req, res) => {
       const userData = req.body;
       const result = await allUsersCollection.insertOne(userData);
@@ -54,10 +58,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-// app.get("/", (req, res) => {
-//   res.send("Hello from home url.");
-// });
 
 app.listen(port, () => {
   console.log(`Server running. Listening to port ${port}`);
