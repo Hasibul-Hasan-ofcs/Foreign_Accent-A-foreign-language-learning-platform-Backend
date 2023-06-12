@@ -45,7 +45,7 @@ async function run() {
       if (req.query.limit) {
         const result = await allClassesCollection
           .find()
-          .sort({ num_of_students: -1 })
+          .sort({ students: -1 })
           .limit(6)
           .toArray();
 
