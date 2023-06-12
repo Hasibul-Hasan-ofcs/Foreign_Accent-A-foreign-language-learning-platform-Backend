@@ -15,7 +15,7 @@ app.use(express.json());
 
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
-  // console.log(req.query, authorization);
+  // console.log("inside verifyJWT", req.query, authorization, "closing");
   if (!authorization) {
     return res
       .status(401)
@@ -59,6 +59,9 @@ async function run() {
     // all collections
     const allUsersCollection = client.db("users").collection("allusers");
     const allClassesCollection = client.db("classes").collection("allclasses");
+    const userClassesCollection = client
+      .db("classes")
+      .collection("userclasses");
     const allInstructorsCollection = client
       .db("users")
       .collection("allInstructors");
@@ -70,6 +73,43 @@ async function run() {
       });
       // console.log("hitting", token);
       res.send({ token });
+    });
+
+    const verifyUser = async (req, res, next) => {
+      console.log("inside verifyuser");
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await allUsersCollection.findOne(query);
+      if (user?.role !== undefined) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
+    // const verifyAdmin = async (req, res, next) => {
+    //   const email = req.decoded.email;
+    //   const query = { email: email }
+    //   const user = await allUsersCollection.findOne(query);
+    //   if (user?.role !== 'admin') {
+    //     return res.status(403).send({ error: true, message: 'forbidden message' });
+    //   }
+    //   next();
+    // }
+
+    // ROLE CHECK
+    app.get("/users/user/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await allUsersCollection.findOne(query);
+      const result = { user: user?.role === undefined };
+      res.send(result);
     });
 
     app.get("/", (req, res) => {
@@ -143,24 +183,95 @@ async function run() {
     });
 
     /*DASHBOARD ROUTE */
-    app.get("/dashboard", verifyJWT, (req, res) => {
-      const email = req.query.email;
+    app.get(
+      "/dashboard/user/selected-classes",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const email = req.query.email;
 
-      console.log("hitting dashboard");
-      // console.log(email, req.decoded, email);
+        console.log("hitting dashboard line 179");
+        // console.log("body->", req.body);
 
-      if (!email) {
-        return res.send([]);
+        if (!email) {
+          return res.send([]);
+        }
+
+        if (email != req.decoded.email) {
+          return res
+            .status(401)
+            .send({ error: true, message: "unauthorized access" });
+        }
+
+        const query = { email: email };
+        const result = await userClassesCollection.find(query).toArray();
+
+        console.log(result);
+
+        res.send(result);
       }
+    );
 
-      if (email != req.decoded.email) {
-        return res
-          .status(401)
-          .send({ error: true, message: "unauthorized access" });
+    app.delete(
+      "/dashboard/user/delete-selected/:id",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+        const result = await userClassesCollection.deleteOne(query);
+
+        console.log(id);
+        res.send(result);
       }
+    );
 
-      res.send({ data: "welcome to dashboard" });
-    });
+    app.post(
+      "/dashboard/user/classes-selection",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const email = req.query.email;
+        const body = req.body;
+
+        console.log("hitting dashboard");
+        console.log("body->", req.body);
+
+        if (!email) {
+          return res.send([]);
+        }
+
+        if (email != req.decoded.email) {
+          return res
+            .status(401)
+            .send({ error: true, message: "unauthorized access" });
+        }
+
+        const result = userClassesCollection.insertOne(body);
+
+        res.send(result);
+      }
+    );
+
+    // app.get("/dashboard", verifyJWT, async (req, res) => {
+    //   const email = req.query.email;
+
+    //   console.log("hitting dashboard");
+    //   // console.log(email, req.decoded, email);
+
+    //   if (!email) {
+    //     return res.send([]);
+    //   }
+
+    //   if (email != req.decoded.email) {
+    //     return res
+    //       .status(401)
+    //       .send({ error: true, message: "unauthorized access" });
+    //   }
+
+    //   res.send({ data: "welcome to dashboard" });
+    // });
 
     /*ADMIN PROMOTION ROUTE*/
     app.patch("/users/admin/:id", async (req, res) => {
