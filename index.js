@@ -15,13 +15,14 @@ app.use(express.json());
 
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
+  // console.log(req.query, authorization);
   if (!authorization) {
     return res
       .status(401)
       .send({ error: true, message: "unauthorized access" });
   }
-
-  const token = authorization.split(" ")[0];
+  // bearer token
+  const token = authorization.split(" ")[1];
 
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
@@ -29,7 +30,6 @@ const verifyJWT = (req, res, next) => {
         .status(401)
         .send({ error: true, message: "unauthorized access" });
     }
-
     req.decoded = decoded;
     next();
   });
@@ -68,7 +68,7 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
-      console.log("hitting", token);
+      // console.log("hitting", token);
       res.send({ token });
     });
 
@@ -131,7 +131,7 @@ async function run() {
         res.send(result);
       } else {
         res.send({ response: "user already exists." });
-        console.log("user already exists.");
+        // console.log("user already exists.");
       }
     });
 
@@ -140,6 +140,26 @@ async function run() {
       const query = { email };
       const result = await allUsersCollection.findOne(query);
       res.send(result);
+    });
+
+    /*DASHBOARD ROUTE */
+    app.get("/dashboard", verifyJWT, (req, res) => {
+      const email = req.query.email;
+
+      console.log("hitting dashboard");
+      // console.log(email, req.decoded, email);
+
+      if (!email) {
+        return res.send([]);
+      }
+
+      if (email != req.decoded.email) {
+        return res
+          .status(401)
+          .send({ error: true, message: "unauthorized access" });
+      }
+
+      res.send({ data: "welcome to dashboard" });
     });
 
     /*ADMIN PROMOTION ROUTE*/
