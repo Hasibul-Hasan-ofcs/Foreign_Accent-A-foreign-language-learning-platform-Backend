@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 const dbUsername = process.env.DB_USERNAME;
 const dbPassword = process.env.DB_PASSWORD;
@@ -107,6 +107,18 @@ async function run() {
       const email = req.query.email;
       const query = { email };
       const result = await allUsersCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId() };
+      const updateDocument = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await allUsersCollection.updateOne(filter, updateDocument);
       res.send(result);
     });
   } finally {
