@@ -26,18 +26,32 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    client.connect();
     // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
+    client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
 
     // all collections
     const allUsersCollection = client.db("users").collection("allusers");
+    const allClassesCollection = client.db("classes").collection("allclasses");
 
     app.get("/", (req, res) => {
       res.send("Hello from home url.");
+    });
+
+    app.get("/classes", async (req, res) => {
+      if (req.query.limit) {
+        const result = await allClassesCollection
+          .find()
+          .sort({ num_of_students: -1 })
+          .limit(6)
+          .toArray();
+
+        console.log("hitting");
+        res.send(result);
+      }
     });
 
     app.post("/users", async (req, res) => {
