@@ -176,7 +176,15 @@ async function run() {
     });
 
     app.get("/classes", async (req, res) => {
-      if (req.query.limit) {
+      if (req?.query?.status == "all") {
+        const result = await allClassesCollection
+          .find()
+          .sort({ students: -1 })
+          .toArray();
+
+        console.log("hitting all");
+        res.send(result);
+      } else if (req.query.limit) {
         const result = await allClassesCollection
           .find({ status: "approved" })
           .sort({ students: -1 })
@@ -187,7 +195,7 @@ async function run() {
         res.send(result);
       } else {
         const result = await allClassesCollection
-          .find()
+          .find({ status: "approved" })
           .sort({ students: -1 })
           .toArray();
 
@@ -241,6 +249,114 @@ async function run() {
       res.send(result);
     });
 
+    /*ADMIN MANAGEMENT ROUTE */
+
+    app.get("/admin/allusers", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await allUsersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.patch(
+      "/dashboard/admin/manage-users/:id/:role",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const role = req.params.role;
+        const filter = {
+          _id: new ObjectId(id),
+        };
+
+        if (role === "admin") {
+          const update = {
+            $set: {
+              role: "admin",
+            },
+          };
+
+          const updateRole = await allUsersCollection.updateOne(filter, update);
+          console.log(updateRole);
+          const result = await allUsersCollection.find().toArray();
+          res.send(result);
+        } else if (role === "instructor") {
+          const update = {
+            $set: {
+              role: "instructor",
+            },
+          };
+
+          const updateRole = await allUsersCollection.updateOne(filter, update);
+          console.log(updateRole);
+          const result = await allUsersCollection.find().toArray();
+          res.send(result);
+        }
+      }
+    );
+
+    app.patch(
+      "/dashboard/admin/manage-status/:id/:status",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const status = req.params.status;
+
+        const filter = {
+          _id: new ObjectId(id),
+        };
+
+        if (status === "approve") {
+          const update = {
+            $set: {
+              status: "approved",
+            },
+          };
+
+          const updateStatus = await allClassesCollection.updateOne(
+            filter,
+            update
+          );
+          console.log(updateStatus);
+          const result = await allClassesCollection.find().toArray();
+          res.send(result);
+        } else if (status === "deny") {
+          const update = {
+            $set: {
+              status: "denied",
+            },
+          };
+
+          const updateStatus = await allClassesCollection.updateOne(
+            filter,
+            update
+          );
+          console.log(updateStatus);
+          const result = await allClassesCollection.find().toArray();
+          res.send(result);
+        } else if (status === "feedback") {
+          const feedbackData = req.body?.feedback;
+
+          console.log(feedbackData);
+
+          const update = {
+            $set: {
+              feedback: feedbackData,
+            },
+          };
+
+          const updateStatus = await allClassesCollection.updateOne(
+            filter,
+            update
+          );
+          console.log(updateStatus);
+          // const result = await allClassesCollection.find().toArray();
+          res.send(updateStatus);
+        }
+
+        // res.send(result);
+      }
+    );
+
     /* PAYMENT ROUTES */
     // create payment intent
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
@@ -259,12 +375,45 @@ async function run() {
 
     // update transaction data to slsected classes data for user
     app.patch(
-      "/dashboard/user/payment/:id",
+      "/dashboard/user/payment/:id/:class_name/:instructor_email",
       verifyJWT,
       verifyUser,
       async (req, res) => {
         const transactionId = req.body.transactionId;
         const id = req.params.id;
+        const class_name = req.params.class_name;
+        const instructor_email = req.params.instructor_email;
+
+        console.log(id, class_name, instructor_email);
+
+        // total seats and students update
+
+        const queryFind = {
+          class_name: class_name,
+          instructor_email: instructor_email,
+        };
+        const classStatus = await allClassesCollection.findOne(queryFind);
+
+        classStatus.available_seats -= 1;
+        classStatus.students += 1;
+
+        // return console.log(classStatus.available_seats, classStatus.students);
+
+        const updateAllClassData = {
+          $set: {
+            available_seats: classStatus.available_seats,
+            students: classStatus.students,
+          },
+        };
+
+        const classesCollectionFilter = {
+          _id: classStatus._id,
+        };
+
+        const updateStatus = await allClassesCollection.updateOne(
+          classesCollectionFilter,
+          updateAllClassData
+        );
 
         const filter = {
           _id: new ObjectId(id),
@@ -276,7 +425,7 @@ async function run() {
           },
         };
 
-        const result = userClassesCollection.updateOne(filter, update);
+        const result = await userClassesCollection.updateOne(filter, update);
         res.send(result);
       }
     );
