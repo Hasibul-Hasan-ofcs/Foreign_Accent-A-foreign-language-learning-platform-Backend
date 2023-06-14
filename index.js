@@ -92,6 +92,32 @@ async function run() {
       next();
     };
 
+    const verifyInstructor = async (req, res, next) => {
+      console.log("inside verify Instructor");
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await allUsersCollection.findOne(query);
+      if (user?.role !== "instructor") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
+    const verifyAdmin = async (req, res, next) => {
+      console.log("inside verify admin");
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await allUsersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
     // const verifyAdmin = async (req, res, next) => {
     //   const email = req.decoded.email;
     //   const query = { email: email }
@@ -116,6 +142,35 @@ async function run() {
       res.send(result);
     });
 
+    // Instructor check
+    app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email }; //instructor
+      const user = await allUsersCollection.findOne(query);
+      const result = { user: user?.role === "instructor" };
+      res.send(result);
+    });
+
+    // Admin check
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email }; //admin
+      const user = await allUsersCollection.findOne(query);
+      const result = { user: user?.role === "admin" };
+      res.send(result);
+    });
+
+    /*BASE URL */
     app.get("/", (req, res) => {
       res.send("Hello from home url.");
     });
@@ -273,6 +328,57 @@ async function run() {
 
     /*DASHBOARD ROUTE */
 
+    app.get(
+      "/dashboard/instructor/classes",
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const email = req.query.email;
+
+        const query = { instructor_email: email };
+        const data = await allClassesCollection
+          .find(query)
+          .sort({ students: -1 })
+          .toArray();
+
+        res.send(data);
+      }
+    );
+
+    /*ADD CLASS (instructor) */
+    app.post(
+      "/dashboard/instructor/classes",
+      verifyJWT,
+      verifyInstructor,
+      async (req, res) => {
+        const data = req.body;
+        const email = req.query.email;
+        const className = req.body.class_name;
+
+        const extraData = { status: "pending", students: 0 };
+
+        data.status = "pending";
+        data.students = 0;
+
+        // return console.log(data);
+
+        const query = {
+          instructor_email: email,
+          class_name: className,
+        };
+        const classExists = await allClassesCollection.findOne(query);
+
+        // return console.log(classExists, className);
+
+        if (!classExists) {
+          const result = await allClassesCollection.insertOne(data);
+          res.send(result);
+        } else {
+          res.send({ response: "class already exists." });
+        }
+      }
+    );
+
     // app.get(
     //   "/dashboard/user/selected-class/:id",
     //   verifyJWT,
@@ -297,7 +403,7 @@ async function run() {
       async (req, res) => {
         const email = req.query.email;
 
-        console.log("hitting dashboard line 179");
+        // console.log("hitting dashboard");
         // console.log("body->", req.body);
 
         if (!email) {
@@ -390,7 +496,7 @@ async function run() {
     /*ADMIN PROMOTION ROUTE*/
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId() };
+      const filter = { _id: new ObjectId(id) };
       const updateDocument = {
         $set: {
           role: "admin",
