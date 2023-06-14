@@ -63,6 +63,9 @@ async function run() {
     const userClassesCollection = client
       .db("classes")
       .collection("userclasses");
+    const userPaymentCollection = client
+      .db("classes")
+      .collection("userpayments");
     const allInstructorsCollection = client
       .db("users")
       .collection("allInstructors");
@@ -199,6 +202,75 @@ async function run() {
       });
     });
 
+    // update transaction data to slsected classes data for user
+    app.patch(
+      "/dashboard/user/payment/:id",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const transactionId = req.body.transactionId;
+        const id = req.params.id;
+
+        const filter = {
+          _id: new ObjectId(id),
+        };
+
+        const update = {
+          $set: {
+            transaction_id: transactionId,
+          },
+        };
+
+        const result = userClassesCollection.updateOne(filter, update);
+        res.send(result);
+      }
+    );
+
+    app.get(
+      "/dashboard/user/payment",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const email = req.query.email;
+
+        console.log(email);
+
+        if (!email) {
+          return res.send([]);
+        }
+        if (email != req.decoded.email) {
+          return res
+            .status(401)
+            .send({ error: true, message: "unauthorized access" });
+        }
+
+        const query = { email: email };
+        const result = await userPaymentCollection
+          .find(query)
+          .sort({ date: -1 })
+          .toArray();
+
+        console.log(result);
+
+        res.send(result);
+      }
+    );
+
+    // save payment history-data to payment collection
+
+    app.post(
+      "/dashboard/user/payment/:id",
+      verifyJWT,
+      verifyUser,
+      async (req, res) => {
+        const body = req.body;
+        console.log(body);
+
+        const result = await userPaymentCollection.insertOne(body);
+        res.send(result);
+      }
+    );
+
     /*DASHBOARD ROUTE */
 
     // app.get(
@@ -240,9 +312,6 @@ async function run() {
 
         const query = { email: email };
         const result = await userClassesCollection.find(query).toArray();
-
-        console.log(result);
-
         res.send(result);
       }
     );
@@ -258,30 +327,6 @@ async function run() {
         const result = await userClassesCollection.deleteOne(query);
 
         console.log(id);
-        res.send(result);
-      }
-    );
-
-    app.patch(
-      "/dashboard/user/payment/:id",
-      verifyJWT,
-      verifyUser,
-      async (req, res) => {
-        const transactionId = req.body.transactionId;
-        const id = req.params.id;
-
-        const filter = {
-          _id: new ObjectId(id),
-        };
-
-        const update = {
-          $set: {
-            transaction_id: transactionId,
-          },
-        };
-
-        const result = userClassesCollection.updateOne(filter, update);
-
         res.send(result);
       }
     );
