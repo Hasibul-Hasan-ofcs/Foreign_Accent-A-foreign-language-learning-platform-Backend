@@ -188,7 +188,7 @@ async function run() {
         const result = await allClassesCollection
           .find({ status: "approved" })
           .sort({ students: -1 })
-          .limit(6)
+          .limit(8)
           .toArray();
 
         console.log("hitting");
@@ -209,7 +209,7 @@ async function run() {
         const result = await allInstructorsCollection
           .find()
           .sort({ students: -1 })
-          .limit(6)
+          .limit(8)
           .toArray();
 
         console.log("hitting instr");
