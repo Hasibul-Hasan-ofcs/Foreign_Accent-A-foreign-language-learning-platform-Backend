@@ -213,7 +213,13 @@ async function run() {
           .toArray();
 
         console.log("hitting instr");
-        res.send(result);
+        const result2 = await allClassesCollection
+          .find({ status: "approved" })
+          .sort({ students: -1 })
+          .limit(8)
+          .toArray();
+        console.log([...result, result2]);
+        res.send({ result2, result });
       } else {
         const result = await allInstructorsCollection
           .find()
